@@ -3,11 +3,7 @@ const asyncHandler = (requestHandler) => {
     try {
       await requestHandler(req, res, next)
     } catch (error) {
-      console.log(error)
-      res.status(500).json({
-        success: false,
-        message: error.message,
-      })
+      next(error)
     }
   }
 }
