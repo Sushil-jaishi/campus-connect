@@ -1,20 +1,12 @@
-import express from "express"
-import cors from "cors"
 import dbConnect from "./db/index.js"
-
-const app = express()
-
-
+import { app } from "./app.js"
 
 dbConnect()
   .then(() => {
-    app.use(cors())
-
-    app.get("/", (req, res) => {
-      res.send("Hello World")
+    app.listen(process.env.PORT, () => {
+      console.log(`http://127.0.0.1:${process.env.PORT}`)
     })
-    app.listen(3000)
   })
-  .catch(() => {
-    console("database connecction failed")
+  .catch((error) => {
+    console.log("database connecction failed", error)
   })
