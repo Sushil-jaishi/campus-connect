@@ -5,7 +5,16 @@ import errorHandler from "./middlewares/errorHandler.middleware.js"
 
 const app = express()
 
-app.use(cors())
+const corsOptions = {
+  origin: function (origin, callback) {
+    // Allow any origin by passing true
+    callback(null, true)
+  },
+  credentials: true,
+  optionsSuccessStatus: 200,
+}
+
+app.use(cors(corsOptions))
 app.use(express.json())
 app.use(express.urlencoded())
 app.use(express.static("public"))
