@@ -3,6 +3,7 @@ import { ApiError } from "../utils/ApiError.js"
 import { User } from "../models/user.model.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 import jwt from "jsonwebtoken"
+import fs from "fs"
 
 const cookieOptions = {
   httpOnly: true,
@@ -158,4 +159,85 @@ const refreshAccessToken = asyncHandler(async (req, res) => {
   }
 })
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken }
+const changeCurrentPassword = asyncHandler(async (req, res) => {
+  const { oldPassword, newPassword } = req.body
+
+  const user = await User.findById(req.user?._id)
+
+  if (!user) {
+    throw new ApiError(404, "User not found")
+  }
+  const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+  if (!isPasswordCorrect) {
+    throw new ApiError(401, "the password is incorrect")
+  }
+
+  user.password = newPassword
+  console.log(user.password)
+  await user.save({ validateBeforeSave: false })
+
+  return res
+    .status(200)
+    .json(new ApiResponse(200, {}, "Password changed successfully"))
+})
+
+const getCurrentUser = asyncHandler(async (req, res) => {
+  return res
+    .status(200)
+    .json(new ApiResponse(200, req.user, "Current user fetched successfully"))
+})
+
+const updateUserProfile = asyncHandler(async (req, res) => {
+  let { name, email, bio } = req.body
+  let profileImage = req.file?.path
+
+  if (!name && !email && !bio && !profileImage) {
+    throw new ApiError(400, "At least one field should be provided")
+  }
+
+  if (email && email !== req.user.email) {
+    const existingUser = await User.findOne({ email })
+    if (existingUser && existingUser._id !== req.user._id) {
+      throw new ApiError(409, "Email is already in use by another account")
+    }
+  }
+
+  name = name || req.user.name
+  email = email || req.user.email
+  bio = bio || req.user.bio
+  profileImage = profileImage || req.user.profileImage
+
+  const oldProfileImage = req.user.profileImage
+
+  const user = await User.findByIdAndUpdate(
+    req.user._id,
+    {
+      $set: {
+        name,
+        email,
+        bio,
+        profileImage,
+      },
+    },
+    { new: true }
+  ).select("-password -refreshToken")
+
+  if (profileImage && oldProfileImage && fs.existsSync(oldProfileImage)) {
+    fs.unlink(oldProfileImage, (err) => {
+      if (err) console.error("Failed to delete old profile image:", err)
+    })
+  }
+
+  res.status(200).json(new ApiResponse(200, user, "User updated successfully"))
+})
+
+export {
+  registerUser,
+  loginUser,
+  logoutUser,
+  refreshAccessToken,
+  changeCurrentPassword,
+  getCurrentUser,
+  updateUserProfile,
+}
